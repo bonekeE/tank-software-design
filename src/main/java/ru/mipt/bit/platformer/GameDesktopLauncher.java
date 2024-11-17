@@ -15,6 +15,8 @@ import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.math.Interpolation;
 import com.badlogic.gdx.math.Rectangle;
+import ru.mipt.bit.platformer.model.Tank;
+import ru.mipt.bit.platformer.model.util.Direction;
 import ru.mipt.bit.platformer.util.TileMovement;
 
 import static com.badlogic.gdx.Input.Keys.*;
@@ -36,11 +38,7 @@ public class GameDesktopLauncher implements ApplicationListener {
     private TextureRegion playerGraphics;
     private Rectangle playerRectangle;
     // player current position coordinates on level 10x8 grid (e.g. x=0, y=1)
-    private GridPoint2 playerCoordinates;
-    // which tile the player want to go next
-    private GridPoint2 playerDestinationCoordinates;
-    private float playerMovementProgress = 1f;
-    private float playerRotation;
+    private Tank playerTank;
 
     private Texture greenTreeTexture;
     private TextureRegion treeObstacleGraphics;
@@ -63,9 +61,7 @@ public class GameDesktopLauncher implements ApplicationListener {
         playerGraphics = new TextureRegion(blueTankTexture);
         playerRectangle = createBoundingRectangle(playerGraphics);
         // set player initial position
-        playerDestinationCoordinates = new GridPoint2(1, 1);
-        playerCoordinates = new GridPoint2(playerDestinationCoordinates);
-        playerRotation = 0f;
+        playerTank = new Tank(new GridPoint2(1, 1));
 
         greenTreeTexture = new Texture("images/greenTree.png");
         treeObstacleGraphics = new TextureRegion(greenTreeTexture);
@@ -84,50 +80,58 @@ public class GameDesktopLauncher implements ApplicationListener {
         float deltaTime = Gdx.graphics.getDeltaTime();
 
         if (Gdx.input.isKeyPressed(UP) || Gdx.input.isKeyPressed(W)) {
-            if (isEqual(playerMovementProgress, 1f)) {
+            if (isEqual(playerTank.getMovementProgress(), 1f)) {
                 // check potential player destination for collision with obstacles
-                if (!treeObstacleCoordinates.equals(incrementedY(playerCoordinates))) {
-                    playerDestinationCoordinates.y++;
-                    playerMovementProgress = 0f;
+                GridPoint2 destinationPosition = incrementedY(playerTank.getCurrentPosition());
+                if (!treeObstacleCoordinates.equals(destinationPosition)) {
+                    playerTank.setDestinationPosition(destinationPosition);
+                    playerTank.setMovementProgress(0);
                 }
-                playerRotation = 90f;
+                playerTank.setDirection(Direction.UP);
             }
         }
         if (Gdx.input.isKeyPressed(LEFT) || Gdx.input.isKeyPressed(A)) {
-            if (isEqual(playerMovementProgress, 1f)) {
-                if (!treeObstacleCoordinates.equals(decrementedX(playerCoordinates))) {
-                    playerDestinationCoordinates.x--;
-                    playerMovementProgress = 0f;
+            if (isEqual(playerTank.getMovementProgress(), 1f)) {
+                GridPoint2 destinationPosition = decrementedX(playerTank.getCurrentPosition());
+                if (!treeObstacleCoordinates.equals(destinationPosition)) {
+                    playerTank.setDestinationPosition(destinationPosition);
+                    playerTank.setMovementProgress(0);
                 }
-                playerRotation = -180f;
+                playerTank.setDirection(Direction.LEFT);
             }
         }
         if (Gdx.input.isKeyPressed(DOWN) || Gdx.input.isKeyPressed(S)) {
-            if (isEqual(playerMovementProgress, 1f)) {
-                if (!treeObstacleCoordinates.equals(decrementedY(playerCoordinates))) {
-                    playerDestinationCoordinates.y--;
-                    playerMovementProgress = 0f;
+            if (isEqual(playerTank.getMovementProgress(), 1f)) {
+                GridPoint2 destinationPosition = decrementedY(playerTank.getCurrentPosition());
+                if (!treeObstacleCoordinates.equals(decrementedY(destinationPosition))) {
+                    playerTank.setDestinationPosition(destinationPosition);
+                    playerTank.setMovementProgress(0);
                 }
-                playerRotation = -90f;
+                playerTank.setDirection(Direction.DOWN);
             }
         }
         if (Gdx.input.isKeyPressed(RIGHT) || Gdx.input.isKeyPressed(D)) {
-            if (isEqual(playerMovementProgress, 1f)) {
-                if (!treeObstacleCoordinates.equals(incrementedX(playerCoordinates))) {
-                    playerDestinationCoordinates.x++;
-                    playerMovementProgress = 0f;
+            if (isEqual(playerTank.getMovementProgress(), 1f)) {
+                GridPoint2 destinationPosition = incrementedX(playerTank.getCurrentPosition());
+                if (!treeObstacleCoordinates.equals(incrementedX(destinationPosition))) {
+                    playerTank.setDestinationPosition(destinationPosition);
+                    playerTank.setMovementProgress(0);
                 }
-                playerRotation = 0f;
+                playerTank.setDirection(Direction.RIGHT);
             }
         }
 
         // calculate interpolated player screen coordinates
-        tileMovement.moveRectangleBetweenTileCenters(playerRectangle, playerCoordinates, playerDestinationCoordinates, playerMovementProgress);
+        tileMovement.moveRectangleBetweenTileCenters(playerRectangle,
+                playerTank.getCurrentPosition(),
+                playerTank.getDestinationPosition(),
+                playerTank.getMovementProgress()
+        );
 
-        playerMovementProgress = continueProgress(playerMovementProgress, deltaTime, MOVEMENT_SPEED);
-        if (isEqual(playerMovementProgress, 1f)) {
+        playerTank.setMovementProgress(continueProgress(playerTank.getMovementProgress(), deltaTime, MOVEMENT_SPEED));
+        if (isEqual(playerTank.getMovementProgress(), 1f)) {
             // record that the player has reached his/her destination
-            playerCoordinates.set(playerDestinationCoordinates);
+            playerTank.setCurrentPosition(playerTank.getDestinationPosition());
         }
 
         // render each tile of the level
@@ -137,7 +141,7 @@ public class GameDesktopLauncher implements ApplicationListener {
         batch.begin();
 
         // render player
-        drawTextureRegionUnscaled(batch, playerGraphics, playerRectangle, playerRotation);
+        drawTextureRegionUnscaled(batch, playerGraphics, playerRectangle, playerTank.getDirection().getRotation());
 
         // render tree obstacle
         drawTextureRegionUnscaled(batch, treeObstacleGraphics, treeObstacleRectangle, 0f);
